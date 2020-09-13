@@ -25,7 +25,7 @@ int main() {
   mr::MapReduce<int, int, int, double> mapr(src, sink, map_fn, reduce_fn);
   mapr.run();
 
-  for(double d : sink.data) {
+  for(double d : sink.get_data()) {
     std::cout << "REDUCED: " << d << std::endl;
   }
 }

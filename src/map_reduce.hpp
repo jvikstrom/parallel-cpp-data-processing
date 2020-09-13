@@ -2,7 +2,6 @@
 #include "io/source.hpp"
 #include "internal/map.hpp"
 #include "internal/reduce.hpp"
-#include "io/util.hpp"
 
 namespace mr {
 
@@ -18,8 +17,8 @@ public:
     MemoryKVSink<Map_Key_Type, Map_Value_Type> apply_sink;
     apply_map(src, apply_sink, map_fn);
     // Remap the sink to a source.
-    auto apply_src = memory_kv_sink_to_source(apply_sink);
-    apply_reduce(sink, apply_src, reduce_fn);
+    auto apply_src = apply_sink.to_source();
+    apply_reduce(sink, *apply_src, reduce_fn);
   }
 };
 }

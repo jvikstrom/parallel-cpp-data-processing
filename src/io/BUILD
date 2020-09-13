@@ -5,7 +5,6 @@ cc_library(
     hdrs = [
         "source.hpp",
         "sink.hpp",
-        "util.hpp",
     ],
     visibility = [
         "//visibility:public",
