@@ -117,4 +117,30 @@ public:
   }
 };
 
+template<typename Key_Type, typename Value_Type>
+class KVFileSource : public KVSource<Key_Type, Value_Type> {
+  struct KV {
+    const Key_Type key;
+    const Value_Type value;
+  };
+  StreamingFileSource<KV> streaming_source;
+  std::unordered_map<Key_Type, std::vector<Value_Type> data;
+  MemoryKVSource<Key_Type, Value_Type> source;
+public:
+  KVFileSource(FILE* file, std::size_t buffer_size, std::function<KV(const std::string&)> decoder) : StreamingFileSource<KV>(file, buffer_size, decoder) {
+    while(streaming_source.has_next()) {
+      KV kv = streaming_source.next();
+      data[kv.key].push_back(kv.value);
+    }
+    source = MemoryKVSource<Key_Type, Value_Type>(data);
+  }
+
+  bool has_next() override {
+    return source.has_next();
+  }
+
+  std::pair<Key_Type, std::vector<Value_Type>> next() override {
+    return source.next();
+  }
+};
 } // namespace mr
