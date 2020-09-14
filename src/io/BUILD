@@ -6,8 +6,19 @@ cc_library(
         "source.hpp",
         "sink.hpp",
     ],
+    deps = [],
     visibility = [
         "//visibility:public",
     ],
 
+)
+
+cc_binary(
+    name = "io_test",
+    srcs = [
+        "streaming_source_test.cc",
+    ],
+    deps = [
+        ":io",
+    ]
 )
