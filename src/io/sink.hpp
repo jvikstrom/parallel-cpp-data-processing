@@ -5,6 +5,8 @@
 #include <memory>
 #include <unordered_map>
 #include <functional>
+#include <mutex>
+
 // Sinks must be thread safe.
 
 namespace mr {
@@ -20,12 +22,15 @@ public:
 template<typename Value_Type>
 class MemorySink : public Sink<Value_Type> {
   std::vector<Value_Type> data;
+  std::mutex mtx;
 public:
   ~MemorySink() {}
   void write(const Value_Type& value) override {
+    std::lock_guard<std::mutex> lk(mtx);
     data.push_back(value);
   }
   std::unique_ptr<Source<Value_Type>> to_source() override {
+    std::lock_guard<std::mutex> lk(mtx);
     return std::unique_ptr<MemorySource<Value_Type>>(new MemorySource<Value_Type>(data));
     //return std::make_unique<MemorySource<Value_Type>>(data);
     //return std::make_unique<MemorySource<typename Value_Type>>(data);
@@ -48,12 +53,15 @@ public:
 template<typename Key_Type, typename Value_Type>
 class MemoryKVSink : public KVSink<Key_Type, Value_Type> {
   std::unordered_map<Key_Type, std::vector<Value_Type>> data;
+  std::mutex mtx;
 public:
   ~MemoryKVSink() {}
   void write(const Key_Type& key, const Value_Type& value) override {
+    std::lock_guard<std::mutex> lk(mtx);
     data[key].push_back(value);
   }
   std::unique_ptr<KVSource<Key_Type, Value_Type>> to_source() override {
+    std::lock_guard<std::mutex> lk(mtx);
     return std::unique_ptr<MemoryKVSource<Key_Type, Value_Type>>(new MemoryKVSource<Key_Type, Value_Type>(data));
     //return std::make_unique(MemoryKVSource<Key_Type, Value_Type>(data));
   }

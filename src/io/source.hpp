@@ -5,6 +5,7 @@
 #include <vector>
 #include <stdio.h>
 #include <iostream>
+#include <mutex>
 
 /// Sources must be thread safe.
 
@@ -22,13 +23,16 @@ template<typename T>
 class MemorySource : public Source<T>{
   std::size_t i = 0;
   std::vector<T> data;
+  std::mutex mtx;
 public:
   MemorySource(const std::vector<T>& in) : data(in) {}
   virtual ~MemorySource() {}
   T next() override {
+    std::lock_guard<std::mutex> lk(mtx);
     return data.at(i++);
   }
   bool has_next() override {
+    std::lock_guard<std::mutex> lk(mtx);
     return i < data.size();
   }
 };
@@ -68,6 +72,7 @@ class StreamingFileSource : public Source<T> {
   std::size_t decode_size_t(const std::string& in) {
     return *reinterpret_cast<const std::size_t*>(in.data());
   }
+  std::mutex mtx;
 public:
   StreamingFileSource(FILE* file, std::size_t buffer_size, std::function<T(const std::string&)> decoder) : decoder(decoder), file(file), buffer_size(buffer_size) {
     buffer.resize(buffer_size);
@@ -77,6 +82,7 @@ public:
     fclose(file);
   }
   bool has_next() override {
+    std::lock_guard<std::mutex> lk(mtx);
     if(i >= buffer.size()) {
       // Need to read the next chunk.
       i = 0;
@@ -86,6 +92,7 @@ public:
     return true;
   }
   T next() override {
+    std::lock_guard<std::mutex> lk(mtx);
     std::size_t next_size = decode_size_t(read_bytes(sizeof(std::size_t)));
     std::string next_val = read_bytes(next_size);
     return decoder(next_val);
@@ -105,17 +112,20 @@ template<typename Key_Type, typename Value_Type>
 class MemoryKVSource : public KVSource<Key_Type, Value_Type> {
   typename std::unordered_map<Key_Type, std::vector<Value_Type>>::iterator data_it;
   std::unordered_map<Key_Type, std::vector<Value_Type>> data;
+  std::mutex mtx;
 public:
   MemoryKVSource(const std::unordered_map<Key_Type, std::vector<Value_Type>>& data) : data(data) {
     data_it = this->data.begin();
   }
   virtual ~MemoryKVSource() {}
   std::pair<Key_Type, std::vector<Value_Type>> next() override {
+    std::lock_guard<std::mutex> lk(mtx);
     auto data = *data_it;
     ++data_it;
     return data;
   }
   bool has_next() override {
+    std::lock_guard<std::mutex> lk(mtx);
     return data_it != data.end();
   }
 };
