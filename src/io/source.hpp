@@ -97,7 +97,39 @@ public:
     std::string next_val = read_bytes(next_size);
     return decoder(next_val);
   }
+};
 
+template<typename T>
+class ShardedFileSource : public Source<T> {
+  std::vector<std::string> shards;
+  std::function<T(const std::string&)> decoder;
+  std::size_t n_parallel_files;
+  std::size_t buffer_size;
+  std::unique_ptr<StreamingFileSource<T>> source;
+  int i = 0;
+  void open_shard(const std::string& path) {
+    FILE* f = fopen(path, "r");
+    if(!f) {
+      throw "Failed opening sharded file";
+    }
+    source = std::make_unique<StreamingFileSource<T>>(f, buffer_size, decoder);
+  }
+public:
+  ShardedFileSource(const std::vector<std::string>& shards, std::size_t n_parallel_files, std::size_t buffer_size, std::function<T(const std::string&)> decoder) : shards(shard), n_parallel_files(n_parallel_files), buffer_size(buffer_size), decoder(decoder) {
+    open_shard(shards[i++]);
+  }
+  bool has_next() override {
+    while(!source->has_next() && i < shards.size()) {
+      open_shard(shards[i++]);
+    }
+    return i < shards.size();
+  }
+  T next() override {
+    while(!source->has_next()) {
+      open_shard(shards[i++]);
+    }
+    return source->next();
+  }
 };
 
 template<typename Key_Type, typename Value_Type>
@@ -156,4 +188,42 @@ public:
     return source.next();
   }
 };
+
+template<typename Key_Type, typename Value_Type>
+class ShardedKVFileSource : public KVSource<Key_Type, Value_Type> {
+  struct KV {
+    const Key_Type key;
+    const Value_Type value;
+  };
+  std::vector<std::string> shards;
+  std::unique_ptr<KVFileSource<KV>> source;
+  int i = 0;
+  std::size_t buffer_size;
+  std::function<KV(const std::string&)> decoder;
+  void open_shard(const std::string& path) {
+    FILE* f = fopen(path, "r");
+    if(!f) {
+      throw "Failed opening sharded file";
+    }
+    source = std::make_unique<KVFileSource<T>>(f, buffer_size, decoder);
+  }
+public:
+  ShardedKVFileSource(const std::vector<std::string>& shards, std::size_t buffer_size, std::function<KV(const std::string&)> decoder) : shards(shards), buffer(buffer_size), decoder(decoder) {
+    open_shard(shards[i++]);
+  }
+  bool has_next() override {
+    while(!source->has_next() && i < shards.size()) {
+      open_shard(shards[i++]);
+    }
+    return i < shards.size();
+  }
+
+  std::pair<Key_Type, std::vector<Value_Type>> next() override {
+    while(!source->has_next()) {
+      open_shard(shards[i++]);
+    }
+    return source->next();
+  }
+};
 } // namespace mr
+
