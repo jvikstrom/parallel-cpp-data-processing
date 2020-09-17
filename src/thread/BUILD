@@ -7,4 +7,8 @@ cc_library(
         "pool.hpp",
     ],
     deps = [],
+    visibility = [
+        "//visibility:public",
+    ],
+    linkopts = ["-pthread"],
 )

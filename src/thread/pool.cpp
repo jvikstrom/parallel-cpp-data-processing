@@ -1,4 +1,6 @@
 #include "pool.hpp"
+#include <iostream>
+#include <chrono>
 
 namespace mr {
 namespace thread {
@@ -10,23 +12,24 @@ Pool::Pool(int n_threads) {
 }
 
 Pool::~Pool() {
+  should_quit.store(true);
   for(std::thread& t : threads) {
     t.join();
   }
 }
 
 void Pool::run_worker() {
-  while(true) {
+  while(!jobs.empty() || !this->should_quit.load()) {
     // TODO: Add predicate that checks if the thread should be shut down.
     std::unique_lock<std::mutex> lk(job_queue_lock);
-    queue_var.wait(lk);
+    if(jobs.empty()) {
+      queue_var.wait_for(lk, std::chrono::milliseconds(100));
+    }
+    if(!lk.owns_lock()) {
+      continue;
+    }
+    
     // There's a job available! Take it and run!
-    take_job();
-  }
-}
-void Pool::take_job() {
-    std::unique_lock<std::mutex> lk(job_queue_lock);
-    lk.lock();
     if(jobs.empty()) {
       // Someone else took the job.
       return;
@@ -35,11 +38,14 @@ void Pool::take_job() {
     jobs.pop();
     lk.unlock();
     job();
+  }
 }
 
 void Pool::add_job(std::function<void()> f) {
-  std::lock_guard<std::mutex> lock(job_queue_lock);
-  jobs.push(f);
+  {
+    std::lock_guard<std::mutex> lk(job_queue_lock);
+    jobs.push(f);
+  }
   queue_var.notify_one();
 }
 }

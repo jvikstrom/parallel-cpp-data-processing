@@ -5,6 +5,9 @@
 #include <vector>
 #include <stdio.h>
 #include <iostream>
+
+/// Sources must be thread safe.
+
 namespace mr {
 
 template<typename T>
@@ -124,7 +127,7 @@ class KVFileSource : public KVSource<Key_Type, Value_Type> {
     const Value_Type value;
   };
   StreamingFileSource<KV> streaming_source;
-  std::unordered_map<Key_Type, std::vector<Value_Type> data;
+  std::unordered_map<Key_Type, std::vector<Value_Type>> data;
   MemoryKVSource<Key_Type, Value_Type> source;
 public:
   KVFileSource(FILE* file, std::size_t buffer_size, std::function<KV(const std::string&)> decoder) : StreamingFileSource<KV>(file, buffer_size, decoder) {

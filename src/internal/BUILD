@@ -6,6 +6,7 @@ cc_library(
     ],
     deps = [
         "//src/io:io",
+        "//src/thread:pool",
     ],
     visibility = [
         "//src:__pkg__",
@@ -20,6 +21,7 @@ cc_library(
     ],
     deps = [
         "//src/io:io",
+        "//src/thread:pool",
     ],
     visibility = [
         "//src:__pkg__",

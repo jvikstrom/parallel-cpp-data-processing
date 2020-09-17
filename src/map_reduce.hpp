@@ -2,6 +2,7 @@
 #include "io/source.hpp"
 #include "internal/map.hpp"
 #include "internal/reduce.hpp"
+#include "thread/pool.hpp"
 
 namespace mr {
 
@@ -12,6 +13,7 @@ class MapReduce {
   const MapFn<In_Type, Map_Key_Type, Map_Value_Type>& map_fn;
   const ReduceFn<Out_Type, Map_Key_Type, Map_Value_Type>& reduce_fn;
 public:
+  // TODO: Initialize the thread pool to use the number of threads we have cores.
   MapReduce(Source<In_Type>& src, Sink<Out_Type>& sink, const MapFn<In_Type, Map_Key_Type, Map_Value_Type>& map_fn, const ReduceFn<Out_Type, Map_Key_Type, Map_Value_Type>& reduce_fn) : src(src), sink(sink), map_fn(map_fn), reduce_fn(reduce_fn) {}
   void run() {
     MemoryKVSink<Map_Key_Type, Map_Value_Type> apply_sink;

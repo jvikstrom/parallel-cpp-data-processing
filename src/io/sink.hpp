@@ -5,6 +5,8 @@
 #include <memory>
 #include <unordered_map>
 #include <functional>
+// Sinks must be thread safe.
+
 namespace mr {
 
 template<typename Out_Type>

@@ -5,6 +5,7 @@ cc_library(
         "map_reduce.hpp",
     ],
     deps = [
+        "//src/thread:pool",
         "//src/internal:map",
         "//src/internal:reduce",
         "//src/io:io"

@@ -1,6 +1,7 @@
 #pragma once
 #include "src/io/source.hpp"
 #include "src/io/sink.hpp"
+#include "src/thread/pool.hpp"
 
 namespace mr {
 
@@ -29,11 +30,15 @@ public:
 // TODO: Pass in a thread-pool here.
 template<typename In_Type, typename Key_Type, typename Out_Type>
 void apply_map(Source<In_Type>& src, KVSink<Key_Type, Out_Type>& sink, MapFn<In_Type, Key_Type, Out_Type> map_fn) {
+  thread::Pool pool(4);
   // TODO: Run this over multiple threads.
   SingleThreadEmitCollector<Key_Type, In_Type> emit_collector(sink);
   while(src.has_next()) {
     const In_Type& value = src.next();
-    map_fn(value, emit_collector);
+    pool.add_job([map_fn, value, emit_collector]() ->void{
+      map_fn(value, emit_collector);
+    });
   }
+  
 }
 }
