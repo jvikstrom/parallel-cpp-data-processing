@@ -20,5 +20,9 @@ cc_binary(
     deps = [
         ":map_reduce",
         "//src/io:io",
+    ],
+    copts = [
+        "-std=c++2a",
+        "-g",
     ]
 )

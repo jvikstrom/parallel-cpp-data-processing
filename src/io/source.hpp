@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <iostream>
 #include <mutex>
+#include <memory>
+#include <stdio.h>
 
 /// Sources must be thread safe.
 
@@ -108,14 +110,15 @@ class ShardedFileSource : public Source<T> {
   std::unique_ptr<StreamingFileSource<T>> source;
   int i = 0;
   void open_shard(const std::string& path) {
-    FILE* f = fopen(path, "r");
+    FILE* f = fopen(path.c_str(), "r");
     if(!f) {
+      std::cout << "exception: Failed opening sharded file" << std::endl;
       throw "Failed opening sharded file";
     }
     source = std::make_unique<StreamingFileSource<T>>(f, buffer_size, decoder);
   }
 public:
-  ShardedFileSource(const std::vector<std::string>& shards, std::size_t n_parallel_files, std::size_t buffer_size, std::function<T(const std::string&)> decoder) : shards(shard), n_parallel_files(n_parallel_files), buffer_size(buffer_size), decoder(decoder) {
+  ShardedFileSource(const std::vector<std::string>& shards, std::size_t n_parallel_files, std::size_t buffer_size, std::function<T(const std::string&)> decoder) : shards(shards), n_parallel_files(n_parallel_files), buffer_size(buffer_size), decoder(decoder) {
     open_shard(shards[i++]);
   }
   bool has_next() override {
@@ -146,10 +149,15 @@ class MemoryKVSource : public KVSource<Key_Type, Value_Type> {
   std::unordered_map<Key_Type, std::vector<Value_Type>> data;
   std::mutex mtx;
 public:
+  MemoryKVSource() {}
   MemoryKVSource(const std::unordered_map<Key_Type, std::vector<Value_Type>>& data) : data(data) {
     data_it = this->data.begin();
   }
   virtual ~MemoryKVSource() {}
+  void set_data(const std::unordered_map<Key_Type, std::vector<Value_Type>>& data) {
+    this->data = data;
+    data_it = this->data.begin();
+  }
   std::pair<Key_Type, std::vector<Value_Type>> next() override {
     std::lock_guard<std::mutex> lk(mtx);
     auto data = *data_it;
@@ -163,21 +171,23 @@ public:
 };
 
 template<typename Key_Type, typename Value_Type>
+struct KV {
+  const Key_Type key;
+  const Value_Type value;
+};
+
+template<typename Key_Type, typename Value_Type>
 class KVFileSource : public KVSource<Key_Type, Value_Type> {
-  struct KV {
-    const Key_Type key;
-    const Value_Type value;
-  };
-  StreamingFileSource<KV> streaming_source;
+  StreamingFileSource<KV<Key_Type, Value_Type>> streaming_source;
   std::unordered_map<Key_Type, std::vector<Value_Type>> data;
   MemoryKVSource<Key_Type, Value_Type> source;
 public:
-  KVFileSource(FILE* file, std::size_t buffer_size, std::function<KV(const std::string&)> decoder) : StreamingFileSource<KV>(file, buffer_size, decoder) {
+  KVFileSource(FILE* file, std::size_t buffer_size, std::function<KV<Key_Type, Value_Type>(const std::string&)> decoder) : streaming_source(file, buffer_size, decoder) {
     while(streaming_source.has_next()) {
       KV kv = streaming_source.next();
       data[kv.key].push_back(kv.value);
     }
-    source = MemoryKVSource<Key_Type, Value_Type>(data);
+    source.set_data(data);
   }
 
   bool has_next() override {
@@ -191,24 +201,21 @@ public:
 
 template<typename Key_Type, typename Value_Type>
 class ShardedKVFileSource : public KVSource<Key_Type, Value_Type> {
-  struct KV {
-    const Key_Type key;
-    const Value_Type value;
-  };
   std::vector<std::string> shards;
-  std::unique_ptr<KVFileSource<KV>> source;
+  std::unique_ptr<KVFileSource<Key_Type, Value_Type>> source;
   int i = 0;
   std::size_t buffer_size;
-  std::function<KV(const std::string&)> decoder;
+  std::function<KV<Key_Type, Value_Type>(const std::string&)> decoder;
   void open_shard(const std::string& path) {
-    FILE* f = fopen(path, "r");
+    FILE* f = fopen(path.c_str(), "r");
     if(!f) {
+      std::cout << "exception: Failed opening sharded file" << std::endl;
       throw "Failed opening sharded file";
     }
-    source = std::make_unique<KVFileSource<T>>(f, buffer_size, decoder);
+    source = std::make_unique<KVFileSource<Key_Type, Value_Type>>(f, buffer_size, decoder);
   }
 public:
-  ShardedKVFileSource(const std::vector<std::string>& shards, std::size_t buffer_size, std::function<KV(const std::string&)> decoder) : shards(shards), buffer(buffer_size), decoder(decoder) {
+  ShardedKVFileSource(const std::vector<std::string>& shards, std::size_t buffer_size, std::function<KV<Key_Type, Value_Type>(const std::string&)> decoder) : shards(shards), buffer_size(buffer_size), decoder(decoder) {
     open_shard(shards[i++]);
   }
   bool has_next() override {

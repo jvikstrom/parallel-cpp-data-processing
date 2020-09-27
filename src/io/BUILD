@@ -20,5 +20,8 @@ cc_binary(
     ],
     deps = [
         ":io",
+    ],
+    copts = [
+        "-std=c++2a",
     ]
 )

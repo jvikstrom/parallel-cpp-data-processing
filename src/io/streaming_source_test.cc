@@ -1,6 +1,7 @@
 #include "source.hpp"
 #include <stdio.h>
 #include <iostream>
+#include <memory>
 
 namespace {
 template<typename POD>
