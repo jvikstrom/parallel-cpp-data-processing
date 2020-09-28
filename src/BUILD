@@ -9,7 +9,10 @@ cc_library(
         "//src/internal:map",
         "//src/internal:reduce",
         "//src/io:io"
-    ]
+    ],
+    visibility = [
+        "//visibility:public",
+    ],
 )
 
 cc_binary(
