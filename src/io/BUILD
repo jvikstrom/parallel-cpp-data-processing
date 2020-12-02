@@ -10,7 +10,6 @@ cc_library(
     visibility = [
         "//visibility:public",
     ],
-
 )
 
 cc_binary(
